@@ -39,10 +39,7 @@ pub fn format(source: &str) -> Result<String, parse::ParseError> {
 /// their starting position are rendered multi-line; lists that fit
 /// are kept on one line. User line breaks and comments are always
 /// preserved (and force multi-line layout for the surrounding list).
-pub fn format_with_width(
-    source: &str,
-    width: usize,
-) -> Result<String, parse::ParseError> {
+pub fn format_with_width(source: &str, width: usize) -> Result<String, parse::ParseError> {
     format_with_style(
         source,
         &Style {
@@ -55,10 +52,7 @@ pub fn format_with_width(
 /// Format a source string with a fully-specified [`Style`]. Use this
 /// when you need control over indent step, tab vs. space, or tab
 /// width on top of the column budget.
-pub fn format_with_style(
-    source: &str,
-    style: &Style,
-) -> Result<String, parse::ParseError> {
+pub fn format_with_style(source: &str, style: &Style) -> Result<String, parse::ParseError> {
     let tokens = lex::lex(source);
     let cst = parse::parse(&tokens, source)?;
     Ok(render::render_with_style(&cst, style))
@@ -101,18 +95,11 @@ pub fn format_range(
     // The full-render path always ensures a trailing newline; in a
     // partial render that's only correct if the original source had
     // one at `span_end`, otherwise we'd inject an extra `\n`.
-    if formatted.ends_with('\n')
-        && source[span_end..]
-            .chars()
-            .next()
-            .is_some_and(|c| c == '\n')
-    {
+    if formatted.ends_with('\n') && source[span_end..].chars().next().is_some_and(|c| c == '\n') {
         formatted.pop();
     }
 
-    let mut out = String::with_capacity(
-        source.len() - (span_end - span_start) + formatted.len(),
-    );
+    let mut out = String::with_capacity(source.len() - (span_end - span_start) + formatted.len());
     out.push_str(&source[..span_start]);
     out.push_str(&formatted);
     out.push_str(&source[span_end..]);
@@ -144,8 +131,7 @@ mod tests {
     fn range_formats_only_overlapping_form() {
         // Two forms; the range covers the second only. The first
         // should be preserved verbatim, including its sloppy spacing.
-        let src =
-            "(  foo  bar  )\n(let ((x 1) (y 2) (z 3) (w 4)) body)\n";
+        let src = "(  foo  bar  )\n(let ((x 1) (y 2) (z 3) (w 4)) body)\n";
         let style = Style {
             width: 20,
             ..Style::default()

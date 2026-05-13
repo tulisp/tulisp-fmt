@@ -241,20 +241,18 @@ mod tests {
     #[test]
     fn missing_trailing_newline_is_marked() {
         let d = unified_diff("f.lisp", "a", "b");
-        assert!(
-            d.contains("\\ No newline at end of file"),
-            "got:\n{d}"
-        );
+        assert!(d.contains("\\ No newline at end of file"), "got:\n{d}");
     }
 
     #[test]
     fn distant_changes_split_into_two_hunks() {
-        let old = (0..10)
-            .map(|i| format!("line{i}\n"))
-            .collect::<String>();
+        let old = (0..10).map(|i| format!("line{i}\n")).collect::<String>();
         let new = old.replace("line0\n", "L0\n").replace("line9\n", "L9\n");
         let d = unified_diff("f", &old, &new);
         let hunk_count = d.matches("@@ ").count();
-        assert_eq!(hunk_count, 2, "two distant changes should be two hunks:\n{d}");
+        assert_eq!(
+            hunk_count, 2,
+            "two distant changes should be two hunks:\n{d}"
+        );
     }
 }

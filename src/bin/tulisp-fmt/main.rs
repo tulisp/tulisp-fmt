@@ -197,12 +197,8 @@ fn parse_range(s: &str) -> Result<(usize, usize), String> {
     let (a, b) = s
         .split_once(':')
         .ok_or_else(|| format!("--range: expected START:END, got `{s}`"))?;
-    let start: usize = a
-        .parse()
-        .map_err(|_| format!("--range: bad START `{a}`"))?;
-    let end: usize = b
-        .parse()
-        .map_err(|_| format!("--range: bad END `{b}`"))?;
+    let start: usize = a.parse().map_err(|_| format!("--range: bad START `{a}`"))?;
+    let end: usize = b.parse().map_err(|_| format!("--range: bad END `{b}`"))?;
     if end < start {
         return Err(format!("--range: END < START ({end} < {start})"));
     }
@@ -331,9 +327,9 @@ fn run_path(path: &str, args: &Args) -> Outcome {
 fn atomic_write(path: &str, contents: &str) -> io::Result<()> {
     let target = Path::new(path);
     let dir = target.parent().filter(|p| !p.as_os_str().is_empty());
-    let file_name = target.file_name().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "path has no file name")
-    })?;
+    let file_name = target
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path has no file name"))?;
 
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -442,15 +438,15 @@ fn print_help() {
     println!("arguments are walked recursively for *.lisp and *.el files; entries");
     println!("starting with `.` (e.g. .git) are skipped.");
     println!();
-    println!(
-        "Style settings can also live in a .tulisp-fmt.toml file discovered by"
-    );
+    println!("Style settings can also live in a .tulisp-fmt.toml file discovered by");
     println!("walking up from the input. CLI flags always override the file.");
     println!();
     println!("Options:");
     println!("  -w, --write          write the formatted result back to each FILE");
     println!("      --check          exit 1 (and list filenames) if any FILE is unformatted");
-    println!("  -d, --diff           print a unified diff of source vs. formatted; exit 1 if any differ");
+    println!(
+        "  -d, --diff           print a unified diff of source vs. formatted; exit 1 if any differ"
+    );
     println!(
         "      --width N        wrap lists past column N (default {})",
         tulisp_fmt::render::DEFAULT_WIDTH,
@@ -521,10 +517,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.subsec_nanos())
             .unwrap_or(0);
-        let p = std::env::temp_dir().join(format!(
-            "tulisp-fmt-walk-{}-{nanos}",
-            std::process::id(),
-        ));
+        let p =
+            std::env::temp_dir().join(format!("tulisp-fmt-walk-{}-{nanos}", std::process::id(),));
         fs::create_dir_all(&p).unwrap();
         p
     }

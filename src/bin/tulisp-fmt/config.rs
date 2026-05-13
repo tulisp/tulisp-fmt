@@ -64,8 +64,7 @@ pub fn discover(start: &Path) -> Option<PathBuf> {
 /// Apply the config at `path` onto `style`, skipping any fields
 /// already set via CLI per `flags`.
 pub fn apply(path: &Path, style: &mut Style, flags: SetFlags) -> Result<(), String> {
-    let text = fs::read_to_string(path)
-        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let map = parse(&text).map_err(|e| format!("{}: {e}", path.display()))?;
 
     for (k, v) in &map {
@@ -190,8 +189,7 @@ pub fn load_for(path: &Path, style: &mut Style, flags: SetFlags) -> Result<(), S
 /// Fallback used when no input file exists yet (stdin path). Looks
 /// from the current working directory.
 pub fn load_for_cwd(style: &mut Style, flags: SetFlags) -> Result<(), String> {
-    let cwd = std::env::current_dir()
-        .map_err(|e: io::Error| format!("cwd: {e}"))?;
+    let cwd = std::env::current_dir().map_err(|e: io::Error| format!("cwd: {e}"))?;
     load_for(&cwd, style, flags)
 }
 
@@ -229,10 +227,7 @@ mod tests {
     #[test]
     fn unknown_key_fails_apply() {
         let mut style = Style::default();
-        let tmp = std::env::temp_dir().join(format!(
-            "tulisp-fmt-cfg-{}.toml",
-            std::process::id(),
-        ));
+        let tmp = std::env::temp_dir().join(format!("tulisp-fmt-cfg-{}.toml", std::process::id(),));
         fs::write(&tmp, "weird_key = 1\n").unwrap();
         let err = apply(&tmp, &mut style, SetFlags::default()).unwrap_err();
         assert!(err.contains("unknown key"), "got: {err}");
@@ -245,12 +240,13 @@ mod tests {
             width: 100,
             ..Style::default()
         };
-        let tmp = std::env::temp_dir().join(format!(
-            "tulisp-fmt-cfg-{}-flags.toml",
-            std::process::id(),
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("tulisp-fmt-cfg-{}-flags.toml", std::process::id(),));
         fs::write(&tmp, "width = 60\n").unwrap();
-        let flags = SetFlags { width: true, ..SetFlags::default() };
+        let flags = SetFlags {
+            width: true,
+            ..SetFlags::default()
+        };
         apply(&tmp, &mut style, flags).unwrap();
         // CLI-set width was preserved.
         assert_eq!(style.width, 100);

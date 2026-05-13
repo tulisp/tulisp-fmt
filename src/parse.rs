@@ -119,11 +119,7 @@ impl<'a> Parser<'a> {
         }
         if terminator.is_some() {
             // Find the most recent unmatched `(` for a useful span.
-            let span = self
-                .tokens
-                .last()
-                .map(|t| t.start..t.end)
-                .unwrap_or(0..0);
+            let span = self.tokens.last().map(|t| t.start..t.end).unwrap_or(0..0);
             return Err(ParseError {
                 message: "unclosed `(`".to_string(),
                 span,

@@ -22,12 +22,12 @@ impl Token {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenKind {
-    LParen,    // (
-    RParen,    // )
-    Quote,     // '
-    Backquote, // `
-    Unquote,   // ,    — not followed by `@`
-    Splice,    // ,@
+    LParen,     // (
+    RParen,     // )
+    Quote,      // '
+    Backquote,  // `
+    Unquote,    // ,    — not followed by `@`
+    Splice,     // ,@
     Sharpquote, // #'
     /// Symbol, number, string, character literal, etc. The kind is
     /// recovered by the parser (and ultimately the renderer) from the
@@ -40,7 +40,9 @@ pub enum TokenKind {
     /// Run of newlines. `count` is the number of `\n` characters; `1`
     /// means a normal line break, `>= 2` means at least one blank
     /// line between the surrounding tokens.
-    LineBreak { count: u32 },
+    LineBreak {
+        count: u32,
+    },
 }
 
 /// Tokenize `source`. Spaces and tabs are skipped silently;
@@ -77,19 +79,35 @@ pub fn lex(source: &str) -> Vec<Token> {
                 });
             }
             b'(' => {
-                out.push(Token { kind: TokenKind::LParen, start: i, end: i + 1 });
+                out.push(Token {
+                    kind: TokenKind::LParen,
+                    start: i,
+                    end: i + 1,
+                });
                 i += 1;
             }
             b')' => {
-                out.push(Token { kind: TokenKind::RParen, start: i, end: i + 1 });
+                out.push(Token {
+                    kind: TokenKind::RParen,
+                    start: i,
+                    end: i + 1,
+                });
                 i += 1;
             }
             b'\'' => {
-                out.push(Token { kind: TokenKind::Quote, start: i, end: i + 1 });
+                out.push(Token {
+                    kind: TokenKind::Quote,
+                    start: i,
+                    end: i + 1,
+                });
                 i += 1;
             }
             b'`' => {
-                out.push(Token { kind: TokenKind::Backquote, start: i, end: i + 1 });
+                out.push(Token {
+                    kind: TokenKind::Backquote,
+                    start: i,
+                    end: i + 1,
+                });
                 i += 1;
             }
             b',' => {
@@ -98,11 +116,19 @@ pub fn lex(source: &str) -> Vec<Token> {
                 } else {
                     (TokenKind::Unquote, i + 1)
                 };
-                out.push(Token { kind, start: i, end });
+                out.push(Token {
+                    kind,
+                    start: i,
+                    end,
+                });
                 i = end;
             }
             b'#' if bytes.get(i + 1) == Some(&b'\'') => {
-                out.push(Token { kind: TokenKind::Sharpquote, start: i, end: i + 2 });
+                out.push(Token {
+                    kind: TokenKind::Sharpquote,
+                    start: i,
+                    end: i + 2,
+                });
                 i += 2;
             }
             b';' => {
@@ -110,7 +136,11 @@ pub fn lex(source: &str) -> Vec<Token> {
                 while i < bytes.len() && bytes[i] != b'\n' {
                     i += 1;
                 }
-                out.push(Token { kind: TokenKind::Comment, start, end: i });
+                out.push(Token {
+                    kind: TokenKind::Comment,
+                    start,
+                    end: i,
+                });
             }
             b'"' => {
                 let start = i;
@@ -129,7 +159,11 @@ pub fn lex(source: &str) -> Vec<Token> {
                         _ => i += 1,
                     }
                 }
-                out.push(Token { kind: TokenKind::Atom, start, end: i });
+                out.push(Token {
+                    kind: TokenKind::Atom,
+                    start,
+                    end: i,
+                });
             }
             b'?' => {
                 // `?X` character literal. The byte after `?` is part
@@ -169,7 +203,11 @@ pub fn lex(source: &str) -> Vec<Token> {
                     // as a one-char atom rather than infinite-looping.
                     i += 1;
                 }
-                out.push(Token { kind: TokenKind::Atom, start, end: i });
+                out.push(Token {
+                    kind: TokenKind::Atom,
+                    start,
+                    end: i,
+                });
             }
         }
     }
