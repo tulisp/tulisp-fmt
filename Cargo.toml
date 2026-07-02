@@ -2,8 +2,8 @@
 name = "tulisp-fmt"
 description = "Source code formatter for tulisp / Emacs Lisp."
 version = "0.1.0"
-repository = "https://github.com/shsms/tulisp"
-license = "GPL-3.0"
+repository = "https://github.com/tulisp/tulisp-fmt"
+license = "GPL-3.0-only"
 edition = "2024"
 keywords = ["lisp", "emacs-lisp", "formatter", "tulisp"]
 categories = ["development-tools::cargo-plugins", "text-processing"]
