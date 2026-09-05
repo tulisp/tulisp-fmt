@@ -137,6 +137,9 @@ over file settings — unset CLI flags fall through to the file.
   render one pair per line by default, even when they fit on a
   single line. Disable with `--no-alist-one-per-line` or
   `alist_one_per_line = false` in the config.
+- A keyword/value tail (`:key value :key value`) that goes
+  multi-line breaks between pairs, never inside one. When the list
+  starts with the first keyword, the keywords line up under it.
 - `(declare (indent N))` on a top-level `defmacro` is harvested in a
   pre-pass; calls to that macro indent according to N for the rest of
   the file.

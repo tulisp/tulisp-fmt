@@ -136,10 +136,7 @@ fn parse_defmacro_indent(node: &CstNode) -> Option<(String, usize)> {
     let CstNode::List { children, .. } = node else {
         return None;
     };
-    let structural: Vec<&CstNode> = children
-        .iter()
-        .filter(|c| !matches!(c, CstNode::LineBreak { .. } | CstNode::Comment { .. }))
-        .collect();
+    let structural: Vec<&CstNode> = children.iter().filter(|c| is_structural(c)).collect();
     let head = match structural.first()? {
         CstNode::Atom { text, .. } => text.as_str(),
         _ => return None,
@@ -167,10 +164,7 @@ fn read_indent_declaration(node: &CstNode) -> Option<usize> {
     let CstNode::List { children, .. } = node else {
         return None;
     };
-    let structural: Vec<&CstNode> = children
-        .iter()
-        .filter(|c| !matches!(c, CstNode::LineBreak { .. } | CstNode::Comment { .. }))
-        .collect();
+    let structural: Vec<&CstNode> = children.iter().filter(|c| is_structural(c)).collect();
     let head = match structural.first()? {
         CstNode::Atom { text, .. } => text.as_str(),
         _ => return None,
@@ -182,10 +176,7 @@ fn read_indent_declaration(node: &CstNode) -> Option<usize> {
         let CstNode::List { children: sc, .. } = spec else {
             continue;
         };
-        let ss: Vec<&CstNode> = sc
-            .iter()
-            .filter(|c| !matches!(c, CstNode::LineBreak { .. } | CstNode::Comment { .. }))
-            .collect();
+        let ss: Vec<&CstNode> = sc.iter().filter(|c| is_structural(c)).collect();
         if let Some(CstNode::Atom { text, .. }) = ss.first()
             && text == "indent"
             && let Some(CstNode::Atom { text: n_text, .. }) = ss.get(1)
@@ -556,6 +547,30 @@ fn max_appended_col(out: &str, snap_len: usize, start_col: usize) -> usize {
     max
 }
 
+/// A child that takes part in the layout: not a line break and not
+/// a comment.
+fn is_structural(node: &CstNode) -> bool {
+    !matches!(node, CstNode::LineBreak { .. } | CstNode::Comment { .. })
+}
+
+/// Index (among the structural children) of the first keyword, when
+/// the children from it to the end alternate keyword, value, keyword,
+/// value. A value may be a keyword too, but a tail of keywords only
+/// is a list of flags, not pairs. Such a tail is laid out pair by
+/// pair. Any other shape returns None and is laid out one child per
+/// line.
+fn plist_tail_start(children: &[CstNode]) -> Option<usize> {
+    let is_keyword = |node: &CstNode| matches!(node, CstNode::Atom { text, .. } if text.len() > 1 && text.starts_with(':'));
+    let structural: Vec<&CstNode> = children.iter().filter(|c| is_structural(c)).collect();
+    let start = structural.iter().position(|c| is_keyword(c))?;
+    let tail = &structural[start..];
+    let in_pairs = tail
+        .chunks(2)
+        .all(|pair| pair.len() == 2 && is_keyword(pair[0]));
+    let has_a_value = tail.iter().skip(1).step_by(2).any(|c| !is_keyword(c));
+    (in_pairs && has_a_value).then_some(start)
+}
+
 /// True if `children` represents a dotted pair — i.e. contains a `.`
 /// atom as a structural element separating the head from the tail.
 fn is_dotted_pair(children: &[CstNode]) -> bool {
@@ -676,6 +691,7 @@ fn render_list_multi(
     let mut second_col: Option<usize> = None;
     let mut struct_count: usize = 0;
     let mut at_line_start = true;
+    let plist_start = plist_tail_start(nodes);
 
     for node in nodes {
         match node {
@@ -706,8 +722,11 @@ fn render_list_multi(
                 // (i.e., the user didn't already lay this list out).
                 let header_args = header_override
                     .unwrap_or_else(|| header_size(head_text.as_deref(), &r.user_indent));
+                // A plist value stays on its keyword's line.
+                let is_plist_value =
+                    plist_start.is_some_and(|s| struct_count > s && (struct_count - s) % 2 == 1);
                 let needs_forced_break =
-                    force_breaks && !at_line_start && struct_count > header_args;
+                    force_breaks && !at_line_start && struct_count > header_args && !is_plist_value;
                 if needs_forced_break {
                     let indent = compute_indent(
                         head_text.as_deref(),
@@ -729,7 +748,9 @@ fn render_list_multi(
                 {
                     head_text = Some(text.clone());
                 }
-                if struct_count == 1 {
+                // A list that is a plist from its head aligns the
+                // keywords under the first one, not under its value.
+                if struct_count == 1 && !is_plist_value {
                     second_col = Some(r.col);
                 }
                 // The bindings list of a `let` / `let*` form gets a
@@ -1293,6 +1314,65 @@ mod tests {
         // outer head + first arg), body at col 4 → 1 tab + 0 spaces.
         let out = fmt_with_style("(when a\n  (when b\n    body))", &style);
         assert_eq!(out, "(when a\n  (when b\n\tbody))\n");
+    }
+
+    /// A keyword/value tail breaks between pairs, never inside one.
+    /// The keywords of a list that is a plist from its head line up
+    /// under the first one; Emacs would put them under its value.
+    #[test]
+    fn plist_breaks_between_pairs() {
+        let out = fmt_with(
+            "(:soc-protect-margin 10.0 :stream-jitter-pct 8.0 :health ok)",
+            50,
+        );
+        assert_eq!(
+            out,
+            "(:soc-protect-margin 10.0\n :stream-jitter-pct 8.0\n :health ok)\n"
+        );
+    }
+
+    /// The same inside a call: the pairs pack after the head.
+    #[test]
+    fn keyword_arguments_of_a_call_break_between_pairs() {
+        let out = fmt_with("(make-meter :id 100 :interval 200 :name \"x\")", 30);
+        assert_eq!(
+            out,
+            "(make-meter :id 100\n            :interval 200\n            :name \"x\")\n"
+        );
+    }
+
+    /// The hanging fallback keeps each keyword with its value too.
+    #[test]
+    fn hanging_fallback_keeps_plist_pairs() {
+        let out = fmt_with("(make-a-long-name :id 100 :interval 200)", 24);
+        assert_eq!(out, "(make-a-long-name\n  :id 100\n  :interval 200)\n");
+    }
+
+    /// An odd keyword tail is not a plist: one child per line.
+    #[test]
+    fn an_odd_keyword_tail_is_not_a_plist() {
+        let out = fmt_with("(foo :a 1 :b)", 10);
+        assert_eq!(out, "(foo :a\n     1\n     :b)\n");
+    }
+
+    /// A value may itself be a keyword.
+    #[test]
+    fn a_keyword_value_stays_with_its_key() {
+        let out = fmt_with("(plot :type :line :width 2 :color \"red\")", 30);
+        assert_eq!(
+            out,
+            "(plot :type :line\n      :width 2\n      :color \"red\")\n"
+        );
+    }
+
+    /// A list of keyword flags has no values to pair with.
+    #[test]
+    fn keywords_only_are_not_a_plist() {
+        let out = fmt_with("'(:verbose :debug :quiet :fast)", 20);
+        assert_eq!(
+            out,
+            "'(:verbose :debug\n           :quiet\n           :fast)\n"
+        );
     }
 
     /// When laying out aligned-under-first-arg would push a child
