@@ -1,7 +1,7 @@
 [package]
 name = "tulisp-fmt"
 description = "Source code formatter for tulisp / Emacs Lisp."
-version = "0.1.0"
+version = "0.2.0"
 repository = "https://github.com/tulisp/tulisp-fmt"
 license = "GPL-3.0-only"
 edition = "2024"
